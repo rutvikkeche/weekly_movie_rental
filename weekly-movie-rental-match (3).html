@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Weekly Movie Rental</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#EEE9DE;
+    --cream-2:#E6E0D2;
+    --cream-3:#DFD8C8;
+    --ink:#17150F;
+    --ink-soft:rgba(23,21,15,0.62);
+    --ink-faint:rgba(23,21,15,0.32);
+    --white:#F6F3EC;
+    --white-soft:rgba(246,243,236,0.6);
+    --white-faint:rgba(246,243,236,0.34);
+    --warn:#E3A6A6;
+    --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--cream);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(23,21,15,0.015) 0px, rgba(23,21,15,0.015) 1px, transparent 1px, transparent 3px);
+    color:var(--ink);
+    font-family:var(--mono);
+    min-height:100vh;
+    padding:48px 20px 80px;
+  }
+  #app{max-width:720px;margin:0 auto;position:relative;}
+
+  /* ---------- shared bits ---------- */
+  .eyebrow{font-size:11px;letter-spacing:0.14em;color:var(--ink-soft);margin-bottom:0;}
+  .btn{
+    font-family:var(--mono);font-size:12px;letter-spacing:0.08em;
+    background:transparent;border:1px solid var(--ink);color:var(--ink);
+    padding:10px 18px;cursor:pointer;transition:background .15s ease, color .15s ease;
+  }
+  .btn:hover{background:var(--ink);color:var(--white);}
+  .btn:active{transform:translateY(1px);}
+  .btn.on-dark{border-color:var(--white-soft);color:var(--white);}
+  .btn.on-dark:hover{background:var(--white);color:var(--ink);}
+  .btn.small{padding:6px 12px;font-size:10.5px;}
+  .btn:disabled{opacity:0.35;cursor:default;}
+  .btn:disabled:hover{background:transparent;color:var(--ink);}
+  input[type=text],input[type=password]{
+    font-family:var(--mono);background:transparent;border:none;
+    border-bottom:1px solid var(--white-soft);color:var(--white);
+    font-size:14px;padding:8px 2px;width:100%;outline:none;
+  }
+  input::placeholder{color:var(--white-faint);}
+  label.field{display:block;margin-bottom:18px;}
+  label.field span{display:block;font-size:10.5px;letter-spacing:0.1em;color:var(--white-faint);margin-bottom:6px;}
+  .prompt{font-size:13px;color:var(--ink-soft);line-height:1.6;margin:10px 0 26px;}
+
+  /* ---------- black card (login / setup only) ---------- */
+  .card{
+    background:var(--ink);color:var(--white);border:1px solid var(--ink);
+    padding:30px 30px 26px;position:relative;overflow:hidden;
+  }
+  .card::before{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(180deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 3px);
+  }
+  .card-top{
+    display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px solid rgba(246,243,236,0.18);padding-bottom:14px;margin-bottom:18px;
+  }
+  .card-top .rec{font-size:11px;letter-spacing:0.14em;color:var(--white-soft);}
+  .card-top .status{font-size:11px;letter-spacing:0.1em;color:var(--white-faint);}
+  .card h1{font-size:19px;margin:0 0 10px;font-weight:600;letter-spacing:0.01em;}
+  .card-foot{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-top:1px solid rgba(246,243,236,0.18);padding-top:16px;margin-top:6px;
+  }
+  .who{font-size:12px;}
+  .who .name{font-weight:600;letter-spacing:0.02em;}
+  .who .role{color:var(--white-faint);font-size:10.5px;letter-spacing:0.08em;margin-top:2px;}
+
+  /* ---------- login/setup card variants ---------- */
+  .auth-row{display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap;}
+  .auth-pick{
+    flex:1;min-width:150px;border:1px solid rgba(246,243,236,0.3);padding:14px 16px;cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .auth-pick:hover{border-color:var(--white);}
+  .auth-pick.active{background:rgba(246,243,236,0.08);border-color:var(--white);}
+  .auth-pick .nm{font-size:13px;font-weight:600;letter-spacing:0.02em;}
+  .auth-pick .tag{font-size:10px;color:var(--white-faint);letter-spacing:0.08em;margin-top:4px;}
+  .auth-error{font-size:11.5px;color:var(--warn);letter-spacing:0.02em;margin-top:2px;min-height:14px;}
+  .setup-note{font-size:11px;color:var(--white-faint);line-height:1.6;margin-top:-6px;margin-bottom:20px;}
+
+  /* ---------- file stack (accordion) ---------- */
+  .stack{margin-top:0;}
+  .file{
+    position:relative;background:var(--ink);padding:2px;margin-top:-44px;
+    clip-path:polygon(30% 0, 70% 0, 85% 44px, 100% 44px, 100% 100%, 0% 100%, 0% 44px, 15% 44px);
+    transition:background-color .32s ease;
+  }
+  .stack .file:first-child{margin-top:0;}
+  /* distinct frame colors so "you rented this" and "matched" are visually different at a glance */
+  .file.locked{background:rgba(246,243,236,0.25);}
+  .file.matched{background:rgba(246,243,236,0.95);}
+
+  .file-inner{
+    display:flex;flex-direction:column;
+    clip-path:polygon(30% 0, 70% 0, 85% 44px, 100% 44px, 100% 100%, 0% 100%, 0% 44px, 15% 44px);
+  }
+
+  .tab{
+    height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:8px;
+    font-size:10.5px;letter-spacing:0.1em;font-weight:600;white-space:nowrap;
+    background:var(--cream);color:var(--ink);padding:0 16px 4px;cursor:pointer;
+    transition:background-color .32s ease, color .32s ease;
+  }
+  .file.locked:not(.open) .tab{background:var(--ink);color:var(--white);}
+  .file.open .tab{background:var(--ink);color:var(--white);}
+  .tab-flag{
+    display:none;font-size:8px;letter-spacing:0.12em;font-weight:700;
+    padding:2px 6px 1px;border:1px solid currentColor;flex-shrink:0;
+  }
+  .tab-flag.show{display:inline-block;}
+
+  .file-content{background:var(--cream);transition:background-color .32s ease;}
+  .file.open .file-content,.file.locked .file-content{background:var(--ink);}
+
+  /* Unselected cards show only the centered title tab -- metadata is present in
+     the DOM (so layout/geometry never shifts) but invisible until the card opens. */
+  .file:not(.open) .file-header{visibility:hidden;}
+
+  .file-header{padding:18px 26px 16px;position:relative;z-index:1;cursor:pointer;}
+  .fh-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;}
+  .rec-no{font-size:9.5px;letter-spacing:0.12em;color:var(--ink-faint);transition:color .32s ease;}
+  .file.open .rec-no,.file.locked .rec-no{color:var(--white-faint);}
+  .top-status{font-size:9.5px;letter-spacing:0.1em;color:var(--white-faint);}
+  .top-status.matched-tag{
+    color:var(--ink);background:var(--white);font-weight:700;
+    padding:3px 8px;letter-spacing:0.12em;
+  }
+  .file-row{display:flex;justify-content:space-between;align-items:center;}
+  .file-title{font-size:12.5px;letter-spacing:0.05em;font-weight:500;color:var(--ink);transition:color .32s ease;}
+  .file.open .file-title,.file.locked .file-title{color:var(--white);}
+  .file-title .extra{font-weight:400;color:var(--ink-soft);}
+  .file.open .file-title .extra,.file.locked .file-title .extra{color:var(--white-soft);}
+
+  .file-body{max-height:0;overflow:hidden;transition:max-height .38s cubic-bezier(.2,.8,.2,1);}
+  .body-inner{padding:0 26px 24px;opacity:0;transition:opacity .22s ease;border-top:1px solid rgba(246,243,236,0.18);}
+  .file.open .body-inner{opacity:1;transition:opacity .28s ease .08s;}
+  .body-inner .desc{font-size:13.5px;line-height:1.7;color:rgba(246,243,236,0.86);margin:16px 0 18px;max-width:56ch;}
+  .body-inner .foot{
+    display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:12px;
+    border-top:1px solid rgba(246,243,236,0.18);padding-top:14px;
+  }
+  .body-inner .actions{display:flex;align-items:center;gap:12px;}
+  .status-pill{border:1px solid var(--white-soft);color:var(--white);padding:8px 16px;font-size:10.5px;letter-spacing:0.08em;white-space:nowrap;}
+  .mark{width:11px;height:11px;border:1px solid var(--white-soft);display:inline-block;position:relative;flex-shrink:0;}
+  .mark.filled{background:var(--white);}
+  .mark.filled::after{content:'';position:absolute;left:3px;top:0px;width:3px;height:6px;border-right:1px solid var(--ink);border-bottom:1px solid var(--ink);transform:rotate(40deg);}
+
+  /* ---------- drawer front / footer ---------- */
+  .drawer{
+    border:1px solid var(--ink);border-top:none;margin-top:-1px;padding:26px 30px 24px;
+    background:var(--cream);position:relative;
+  }
+  .drawer-label{text-align:center;font-size:11px;letter-spacing:0.16em;color:var(--ink-soft);margin-bottom:20px;}
+  .drawer-grid{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;font-size:11px;letter-spacing:0.04em;color:var(--ink-soft);}
+  .drawer-grid .cell .k{font-size:9.5px;letter-spacing:0.1em;color:var(--ink-faint);margin-bottom:3px;}
+  .drawer-grid .cell .v{color:var(--ink);font-weight:600;font-size:12px;}
+  .drawer-actions{display:flex;justify-content:space-between;align-items:center;margin-top:22px;padding-top:16px;border-top:1px solid var(--ink-faint);flex-wrap:wrap;gap:10px;}
+  .drawer-actions .dim{font-size:10.5px;color:var(--ink-faint);letter-spacing:0.04em;}
+
+  .warn-card{background:var(--ink);color:var(--white);border:1px solid var(--ink);padding:20px 22px;margin-top:18px;}
+  .warn-card .label{font-size:10px;letter-spacing:0.12em;color:var(--warn);margin-bottom:10px;}
+  .warn-card .msg{font-size:12.5px;line-height:1.65;color:rgba(246,243,236,0.86);margin-bottom:18px;}
+  .warn-card .row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
+
+  /* ---------- loading ---------- */
+  .loading-card{border:1px solid var(--ink);background:var(--cream);padding:22px 26px;display:flex;align-items:center;gap:14px;margin-top:14px;}
+  .pulse-dot{width:7px;height:7px;background:var(--ink);animation:pulse 1.1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:0.25;}50%{opacity:1;}}
+  .loading-text{font-size:11.5px;letter-spacing:0.08em;color:var(--ink-soft);}
+  .skeleton-file{border:1px solid var(--ink-faint);background:var(--cream-2);margin-top:-1px;height:64px;opacity:.5;}
+
+  @media (max-width:520px){
+    body{padding:32px 14px 64px;}
+    .card{padding:22px 18px 20px;}
+    .file-header{padding:16px 18px 14px;}
+    .body-inner{padding:0 18px 20px;}
+    .drawer{padding:22px 18px 20px;}
+    .drawer-grid{gap:14px;}
+  }
+
+  /* ---------- matches modal ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(23,21,15,0.55);
+    display:flex;align-items:center;justify-content:center;z-index:1000;
+    padding:24px 16px;
+  }
+  .matches-panel{
+    background:var(--cream);border:1px solid var(--ink);max-width:600px;width:100%;
+    max-height:86vh;overflow-y:auto;padding:30px 30px 26px;position:relative;
+  }
+  .matches-head{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    border-bottom:1px solid var(--ink);padding-bottom:16px;margin-bottom:20px;
+  }
+  .matches-head .eyebrow{margin:0;color:var(--ink-soft);}
+  .matches-close{
+    background:transparent;border:none;cursor:pointer;color:var(--ink);
+    font-family:var(--mono);font-size:18px;line-height:1;padding:0 0 0 16px;
+  }
+  .matches-close:hover{opacity:0.6;}
+  .match-block{border-bottom:1px solid var(--ink-faint);padding:20px 0;}
+  .match-block:first-of-type{padding-top:0;}
+  .match-block:last-of-type{border-bottom:none;}
+  .match-block .match-no{font-size:10px;letter-spacing:0.14em;color:var(--ink-faint);margin-bottom:8px;}
+  .match-block .match-title{font-size:20px;font-weight:700;letter-spacing:0.01em;margin-bottom:8px;}
+  .match-block .match-meta{font-size:12.5px;color:var(--ink-soft);letter-spacing:0.02em;margin-bottom:14px;}
+  .match-block .match-names{font-size:13px;font-weight:600;letter-spacing:0.03em;}
+  .matches-empty{font-size:12.5px;color:var(--ink-soft);line-height:1.7;padding:10px 0 24px;}
+  .matches-download{
+    width:100%;margin-top:20px;font-family:var(--mono);font-size:12px;letter-spacing:0.08em;
+    background:transparent;border:1px solid var(--ink);color:var(--ink);
+    padding:14px 18px;cursor:pointer;transition:background .15s ease, color .15s ease;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+  }
+  .matches-download:hover{background:var(--ink);color:var(--white);}
+  .matches-download:disabled{opacity:0.35;cursor:default;}
+  .matches-download:disabled:hover{background:transparent;color:var(--ink);}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function(){
+
+/* ================= FALLBACK POOL (used only if the live pull fails) =================
+   Real, well-known, broadly mainstream films. Factual data only; synopses are written
+   fresh, not taken from marketing copy. */
+const FALLBACK_POOL = [
+  {title:"Jurassic Park", director:"Steven Spielberg", year:1993, genre_runtime:"ADVENTURE · 127M", synopsis:"A billionaire's island theme park of cloned dinosaurs spirals into chaos when the power fails."},
+  {title:"Spirited Away", director:"Hayao Miyazaki", year:2001, genre_runtime:"ANIMATION · 125M", synopsis:"A young girl trapped in a spirit realm must work in a bathhouse for gods to save her transformed parents."},
+  {title:"The Dark Knight", director:"Christopher Nolan", year:2008, genre_runtime:"ACTION · 152M", synopsis:"Batman faces a chaos-driven criminal mastermind determined to prove that anyone can be broken."},
+  {title:"Titanic", director:"James Cameron", year:1997, genre_runtime:"ROMANCE · 195M", synopsis:"A penniless artist and a wealthy young woman fall in love aboard a doomed ocean liner."},
+  {title:"Parasite", director:"Bong Joon-ho", year:2019, genre_runtime:"THRILLER · 132M", synopsis:"A struggling family schemes its way into the households of a wealthy one, with consequences neither expects."},
+  {title:"Forrest Gump", director:"Robert Zemeckis", year:1994, genre_runtime:"DRAMA · 142M", synopsis:"A kind-hearted man with a low IQ unwittingly finds himself present for decades of American history."},
+  {title:"No Country for Old Men", director:"Joel & Ethan Coen", year:2007, genre_runtime:"CRIME · 122M", synopsis:"A hunter who stumbles on drug money becomes the target of a relentless killer across the Texas borderlands."},
+  {title:"Ghostbusters", director:"Ivan Reitman", year:1984, genre_runtime:"COMEDY · 105M", synopsis:"Three unemployed parapsychologists start a business catching ghosts terrorizing New York City."},
+  {title:"The Departed", director:"Martin Scorsese", year:2006, genre_runtime:"CRIME · 151M", synopsis:"An undercover cop and a mob informant embedded in the police race to expose each other first."},
+  {title:"La La Land", director:"Damien Chazelle", year:2016, genre_runtime:"MUSICAL · 128M", synopsis:"An aspiring actress and a struggling jazz pianist fall for each other while chasing their own dreams in Los Angeles."},
+  {title:"Heat", director:"Michael Mann", year:1995, genre_runtime:"CRIME · 170M", synopsis:"A disciplined career criminal and the detective hunting him circle each other across Los Angeles."},
+  {title:"The Grand Budapest Hotel", director:"Wes Anderson", year:2014, genre_runtime:"COMEDY · 99M", synopsis:"A legendary concierge and his loyal lobby boy get swept into a stolen painting and a fight over a fortune."},
+  {title:"Gladiator", director:"Ridley Scott", year:2000, genre_runtime:"ACTION · 155M", synopsis:"A betrayed Roman general is sold into slavery and rises through the gladiator ranks seeking revenge."},
+  {title:"Back to the Future", director:"Robert Zemeckis", year:1985, genre_runtime:"SCI-FI · 116M", synopsis:"A teenager accidentally sent thirty years into the past must fix the timeline and get himself home."},
+  {title:"The Shawshank Redemption", director:"Frank Darabont", year:1994, genre_runtime:"DRAMA · 142M", synopsis:"A banker wrongly convicted of murder builds an unlikely friendship and a quiet plan across two decades in prison."},
+  {title:"Drive", director:"Nicolas Winding Refn", year:2011, genre_runtime:"CRIME · 100M", synopsis:"A Hollywood stunt driver who moonlights as a getaway driver falls for his neighbor and into her husband's trouble."}
+];
+
+/* ================= UTIL ================= */
+function seededRandom(seed){
+  let h = 1779033703 ^ seed.length;
+  for (let i=0;i<seed.length;i++){
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return function(){
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+}
+function shuffled(arr, rng){
+  const a = arr.slice();
+  for (let i=a.length-1;i>0;i--){
+    const j = Math.floor(rng()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function normalizeMovies(raw){
+  return raw.slice(0,8).map((m,i)=>({
+    id: "m"+i,
+    t: String(m.title||"UNTITLED").toUpperCase(),
+    d: String(m.director||"Unknown"),
+    y: m.year || "",
+    g: String(m.genre_runtime||"FILM"),
+    s: String(m.synopsis||"")
+  }));
+}
+function fallbackMoviesForWeek(seed){
+  const rng = seededRandom(seed + ":fallback");
+  return normalizeMovies(shuffled(FALLBACK_POOL, rng));
+}
+function randomSetId(){
+  return "S" + Math.random().toString(36).slice(2,8).toUpperCase();
+}
+function esc(s){ const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+/* ================= LIVE MOVIE PULL (Claude API) ================= */
+async function fetchWeeklyMovies(setId){
+  const prompt = [
+    "You are populating a small movie-rental catalog.",
+    "Pick exactly 8 real, existing films (not fictional) spanning different decades and genres",
+    "— favor mainstream, popular, widely-recognized crowd-pleasers (box office hits, well-known award winners,",
+    "cult favorites people have actually heard of). Avoid obscure arthouse, festival-only, or niche foreign films.",
+    "Mix classic and recent, but keep it broadly accessible, and avoid picking the same director twice.",
+    "Use this string only to vary your picks between catalogs, do not mention it: " + setId,
+    "",
+    "For each film return accurate factual data plus ONE original sentence describing the premise",
+    "in your own words — never quote marketing copy, taglines, or reviews.",
+    "",
+    "Respond with ONLY a raw JSON array, no markdown fences, no commentary, of exactly 8 objects:",
+    '[{"title":"...", "director":"...", "year":1999, "genre_runtime":"DRAMA · 104M", "synopsis":"..."}]',
+    "genre_runtime must combine one uppercase genre word and the runtime in minutes like \"DRAMA · 104M\"."
+  ].join("\n");
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      messages: [{role:"user", content: prompt}]
+    })
+  });
+  const data = await resp.json();
+  const text = (data.content || [])
+    .filter(b => b.type === "text")
+    .map(b => b.text)
+    .join("");
+  const clean = text.replace(/```json|```/g, "").trim();
+  const arr = JSON.parse(clean);
+  if (!Array.isArray(arr) || arr.length < 8) throw new Error("bad shape");
+  return normalizeMovies(arr);
+}
+
+/* ================= STORAGE (shared) ================= */
+async function sGet(key){
+  try{ const r = await window.storage.get(key, true); return r ? r.value : null; }
+  catch(e){ return null; }
+}
+async function sSet(key, value){
+  try{ return await window.storage.set(key, value, true); }
+  catch(e){ return null; }
+}
+
+async function getOrCreateCycle(){
+  const raw = await sGet("cycle");
+  if (raw) return JSON.parse(raw);
+  const cycle = {id: randomSetId(), startedAt: new Date().toISOString()};
+  await sSet("cycle", JSON.stringify(cycle));
+  return cycle;
+}
+async function ensureMoviesForCycle(cycleId){
+  let cached = await sGet("movies:" + cycleId);
+  if (cached) return JSON.parse(cached);
+  let movies;
+  try{ movies = await fetchWeeklyMovies(cycleId); }
+  catch(e){ movies = fallbackMoviesForWeek(cycleId); }
+  cached = await sGet("movies:" + cycleId); // avoid clobbering a concurrent pull
+  if (cached) return JSON.parse(cached);
+  await sSet("movies:" + cycleId, JSON.stringify(movies));
+  return movies;
+}
+
+/* ================= STATE ================= */
+const state = {
+  screen: "loading",   // loading | setup | login | app
+  profiles: null,
+  pendingPick: null,
+  loginError: "",
+  me: null,
+  cycle: null,
+  movies: [],
+  moviesLoaded: false,
+  rentals: {A:[], B:[]},
+  openMovieId: null,
+  saving: false,
+  appMounted: false,
+  confirmingNewSet: false,
+  fileEls: {}
+};
+
+/* ================= INIT ================= */
+async function init(){
+  const cyclePromise = (async () => {
+    const cycle = await getOrCreateCycle();
+    state.cycle = cycle;
+    const movies = await ensureMoviesForCycle(cycle.id);
+    state.movies = movies;
+    state.moviesLoaded = true;
+    await loadRentals();
+    render();
+  })();
+
+  const profilesRaw = await sGet("profiles");
+  if (!profilesRaw){
+    state.screen = "setup";
+    render();
+    return;
+  }
+  state.profiles = JSON.parse(profilesRaw);
+  state.screen = "login";
+  render();
+  await cyclePromise;
+}
+
+async function loadRentals(){
+  if (!state.cycle) return;
+  const [a, b] = await Promise.all([
+    sGet("rentals:" + state.cycle.id + ":A"),
+    sGet("rentals:" + state.cycle.id + ":B")
+  ]);
+  state.rentals.A = a ? JSON.parse(a) : [];
+  state.rentals.B = b ? JSON.parse(b) : [];
+}
+
+function matchedIds(){
+  return state.movies
+    .map(m => m.id)
+    .filter(id => state.rentals.A.includes(id) && state.rentals.B.includes(id));
+}
+
+/* ================= ACTIONS ================= */
+async function setupProfiles(nameA, passA, nameB, passB){
+  const profiles = {
+    A: {name: nameA.trim() || "Person A", pass: passA},
+    B: {name: nameB.trim() || "Person B", pass: passB}
+  };
+  await sSet("profiles", JSON.stringify(profiles));
+  state.profiles = profiles;
+  state.screen = "login";
+  render();
+}
+
+function attemptLogin(who, pass){
+  const profile = state.profiles[who];
+  if (pass === profile.pass){
+    state.me = who;
+    state.loginError = "";
+    state.screen = "app";
+    state.appMounted = false;
+    render();
+  } else {
+    state.loginError = "Passcode does not match this file.";
+    render();
+  }
+}
+
+function logout(){
+  state.me = null;
+  state.openMovieId = null;
+  state.screen = "login";
+  state.appMounted = false;
+  render();
+}
+
+async function toggleRent(movieId){
+  if (state.saving) return;
+  const mine = state.rentals[state.me];
+  const already = mine.includes(movieId);
+  const next = already ? mine.filter(id => id !== movieId) : [...mine, movieId];
+  state.rentals[state.me] = next;
+  state.saving = true;
+  updateAllRows();
+  updateDrawer();
+  await sSet("rentals:" + state.cycle.id + ":" + state.me, JSON.stringify(next));
+  state.saving = false;
+  updateAllRows();
+  updateDrawer();
+}
+
+/* ---- manual sync: safe, just pulls latest rentals from the shared drawer ---- */
+async function syncRentals(){
+  await loadRentals();
+  updateAllRows();
+  updateDrawer();
+}
+
+/* ---- manual new set: destructive, warns first if either account has active rentals ---- */
+async function startNewSetFlow(){
+  await loadRentals();
+  updateAllRows();
+  updateDrawer();
+  const anyRentals = state.rentals.A.length > 0 || state.rentals.B.length > 0;
+  if (anyRentals){
+    state.confirmingNewSet = true;
+    updateDrawer();
+    return;
+  }
+  await performNewSet();
+}
+function cancelNewSet(){
+  state.confirmingNewSet = false;
+  updateDrawer();
+}
+async function performNewSet(){
+  state.confirmingNewSet = false;
+  state.openMovieId = null;
+  state.moviesLoaded = false;
+  state.appMounted = false;
+  render();
+
+  const cycle = {id: randomSetId(), startedAt: new Date().toISOString()};
+  await sSet("cycle", JSON.stringify(cycle));
+  state.cycle = cycle;
+
+  let movies;
+  try{ movies = await fetchWeeklyMovies(cycle.id); }
+  catch(e){ movies = fallbackMoviesForWeek(cycle.id); }
+  await sSet("movies:" + cycle.id, JSON.stringify(movies));
+  state.movies = movies;
+  state.moviesLoaded = true;
+  await loadRentals();
+  render();
+}
+
+/* ================= ACCORDION OPEN/CLOSE ================= */
+function toggleOpen(id){
+  const wasOpen = state.openMovieId === id;
+  const prevId = state.openMovieId;
+  state.openMovieId = wasOpen ? null : id;
+
+  if (prevId && prevId !== state.openMovieId) collapseFile(prevId);
+  if (state.openMovieId) expandFile(state.openMovieId);
+
+  updateAllRows();
+  updateDrawer();
+}
+function expandFile(id){
+  const el = state.fileEls[id];
+  if (!el) return;
+  el.classList.add("open");
+  const body = el.querySelector(".file-body");
+  requestAnimationFrame(() => {
+    body.style.maxHeight = body.scrollHeight + "px";
+  });
+}
+function collapseFile(id){
+  const el = state.fileEls[id];
+  if (!el) return;
+  const body = el.querySelector(".file-body");
+  body.style.maxHeight = body.scrollHeight + "px"; // lock current height first
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      body.style.maxHeight = "0px";
+    });
+  });
+  el.classList.remove("open");
+}
+window.addEventListener("resize", () => {
+  if (!state.openMovieId) return;
+  const el = state.fileEls[state.openMovieId];
+  if (!el) return;
+  const body = el.querySelector(".file-body");
+  body.style.maxHeight = body.scrollHeight + "px";
+});
+
+/* ================= RENDER ================= */
+const app = document.getElementById("app");
+
+function render(){
+  if (state.screen === "loading"){ app.innerHTML = ""; return; }
+  if (state.screen === "setup"){ renderSetup(); return; }
+  if (state.screen === "login"){ renderLogin(); return; }
+  if (state.screen === "app"){
+    if (!state.moviesLoaded){ renderAppLoading(); state.appMounted = false; return; }
+    if (!state.appMounted){ mountApp(); state.appMounted = true; return; }
+    return;
+  }
+}
+
+function renderSetup(){
+  app.innerHTML = `
+    <div class="eyebrow">NEW FILE · WEEKLY MOVIE RENTAL</div>
+    <p class="prompt">This drawer is empty. Set up the two accounts that will share it — each person picks a name and a private passcode.</p>
+    <div class="card">
+      <div class="card-top"><div class="rec">SETUP 001 / 001</div><div class="status">NOT YET OPENED</div></div>
+      <h1>Create both accounts</h1>
+      <div class="setup-note">Stored with this drawer and shared between both accounts — anyone with the link and a passcode can sign in.</div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;">
+          <label class="field"><span>PERSON A · NAME</span><input id="nameA" type="text" placeholder="e.g. Ren" /></label>
+          <label class="field"><span>PERSON A · PASSCODE</span><input id="passA" type="password" placeholder="4+ characters" /></label>
+        </div>
+        <div style="flex:1;min-width:220px;">
+          <label class="field"><span>PERSON B · NAME</span><input id="nameB" type="text" placeholder="e.g. Ivo" /></label>
+          <label class="field"><span>PERSON B · PASSCODE</span><input id="passB" type="password" placeholder="4+ characters" /></label>
+        </div>
+      </div>
+      <div id="setupErr" class="auth-error"></div>
+      <div class="card-foot" style="border-top:none;padding-top:6px;">
+        <div class="who"></div>
+        <button class="btn on-dark" id="setupBtn">FILE &amp; CONTINUE</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("setupBtn").onclick = async () => {
+    const nameA = document.getElementById("nameA").value;
+    const passA = document.getElementById("passA").value;
+    const nameB = document.getElementById("nameB").value;
+    const passB = document.getElementById("passB").value;
+    const err = document.getElementById("setupErr");
+    if (passA.trim().length < 4 || passB.trim().length < 4){
+      err.textContent = "Each passcode needs at least 4 characters.";
+      return;
+    }
+    err.textContent = "";
+    await setupProfiles(nameA, passA.trim(), nameB, passB.trim());
+  };
+}
+
+function renderLogin(){
+  const pick = state.pendingPick;
+  const profiles = state.profiles;
+  app.innerHTML = `
+    <div class="eyebrow">WEEKLY MOVIE RENTAL</div>
+    <p class="prompt">Sign in to see this set's eight files.</p>
+    <div class="card">
+      <div class="card-top"><div class="rec">LOG 001 / 001</div><div class="status">ACCOUNT</div></div>
+      <h1>Who's opening the drawer?</h1>
+      <div class="auth-row">
+        <div class="auth-pick ${pick==='A'?'active':''}" data-who="A">
+          <div class="nm">${esc(profiles.A.name)}</div><div class="tag">ACCOUNT A</div>
+        </div>
+        <div class="auth-pick ${pick==='B'?'active':''}" data-who="B">
+          <div class="nm">${esc(profiles.B.name)}</div><div class="tag">ACCOUNT B</div>
+        </div>
+      </div>
+      ${pick ? `
+        <label class="field"><span>PASSCODE</span><input id="loginPass" type="password" placeholder="••••" /></label>
+        <div class="auth-error">${esc(state.loginError)}</div>
+      ` : `<div class="auth-error"></div>`}
+      <div class="card-foot" style="border-top:none;padding-top:2px;">
+        <div class="who"></div>
+        <button class="btn on-dark" id="loginBtn" ${pick ? "" : "disabled"}>SIGN IN</button>
+      </div>
+    </div>
+  `;
+  document.querySelectorAll(".auth-pick").forEach(el => {
+    el.onclick = () => {
+      state.pendingPick = el.getAttribute("data-who");
+      state.loginError = "";
+      render();
+      const inp = document.getElementById("loginPass");
+      if (inp) inp.focus();
+    };
+  });
+  const btn = document.getElementById("loginBtn");
+  if (btn){
+    const doLogin = () => attemptLogin(state.pendingPick, document.getElementById("loginPass").value);
+    btn.onclick = doLogin;
+    const inp = document.getElementById("loginPass");
+    if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+  }
+}
+
+function renderAppLoading(){
+  app.innerHTML = `
+    <div class="loading-card">
+      <div class="pulse-dot"></div>
+      <div class="loading-text">PULLING THIS SET'S 8 FILES…</div>
+    </div>
+    <div class="stack">${[0,1,2,3].map(()=>`<div class="skeleton-file"></div>`).join("")}</div>
+  `;
+}
+
+/* ---------- app: mounted once per cycle/login, then updated in place ---------- */
+function mountApp(){
+  app.innerHTML = `
+    <div class="stack" id="stackEl"></div>
+    <div class="drawer" id="drawerEl"></div>
+  `;
+  buildFileElements(document.getElementById("stackEl"));
+  updateAllRows();
+  updateDrawer();
+}
+
+function buildFileElements(container){
+  container.innerHTML = "";
+  state.fileEls = {};
+  state.movies.forEach((m) => {
+    const el = document.createElement("div");
+    el.className = "file";
+    el.dataset.id = m.id;
+    el.innerHTML = `
+      <div class="file-inner">
+        <div class="tab">
+          <span class="tab-title">${esc(m.t)}</span>
+          <span class="tab-flag">MATCHED</span>
+        </div>
+        <div class="file-content">
+          <div class="file-header">
+            <div class="fh-top">
+              <div class="rec-no"></div>
+              <div class="top-status"></div>
+            </div>
+            <div class="file-row">
+              <div class="file-title"></div>
+            </div>
+          </div>
+          <div class="file-body">
+            <div class="body-inner">
+              <p class="desc">${esc(m.s)}</p>
+              <div class="foot">
+                <div class="foot-actions"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    el.querySelector(".tab").addEventListener("click", () => toggleOpen(m.id));
+    el.querySelector(".file-header").addEventListener("click", () => toggleOpen(m.id));
+    container.appendChild(el);
+    state.fileEls[m.id] = el;
+  });
+}
+
+function updateRow(id){
+  const el = state.fileEls[id];
+  if (!el) return;
+  const m = state.movies.find(x => x.id === id);
+  const i = state.movies.indexOf(m);
+  const matched = matchedIds().includes(id);
+  const mine = state.rentals[state.me].includes(id);
+  const isOpen = state.openMovieId === id;
+  const locked = matched || mine;
+
+  el.classList.toggle("open", isOpen);
+  el.classList.toggle("locked", locked);
+
+  el.querySelector(".tab-flag").classList.toggle("show", matched);
+
+  el.querySelector(".rec-no").textContent = "REC " + String(i+1).padStart(3,"0") + " / 008";
+
+  const topStatus = el.querySelector(".top-status");
+  topStatus.textContent = "";
+  topStatus.classList.remove("matched-tag");
+
+  const titleEl = el.querySelector(".file-title");
+  titleEl.innerHTML = isOpen
+    ? `${esc(m.d)} · ${esc(String(m.y))} <span class="extra">· ${esc(m.g)}</span>`
+    : `${esc(m.d)} · ${esc(String(m.y))}`;
+
+  const actions = el.querySelector(".foot-actions");
+  if (matched || mine){
+    actions.innerHTML = `<div class="actions"><button class="btn on-dark small" data-rent-id="${id}">UN-RENT</button></div>`;
+  } else {
+    actions.innerHTML = `<div class="actions"><button class="btn on-dark" data-rent-id="${id}">RENT</button></div>`;
+  }
+  const rentBtn = actions.querySelector("[data-rent-id]");
+  if (rentBtn) rentBtn.onclick = (e) => { e.stopPropagation(); toggleRent(id); };
+
+  if (isOpen){
+    const body = el.querySelector(".file-body");
+    body.style.maxHeight = body.scrollHeight + "px";
+  }
+}
+function updateAllRows(){
+  state.movies.forEach(m => updateRow(m.id));
+}
+
+function drawerInnerHtml(){
+  const matched = matchedIds();
+  const myRentals = state.rentals[state.me] || [];
+  const otherKey = state.me === "A" ? "B" : "A";
+
+  let warn = "";
+  if (state.confirmingNewSet){
+    const myCount = (state.rentals[state.me] || []).length;
+    const otherCount = (state.rentals[otherKey] || []).length;
+    const otherName = state.profiles[otherKey].name;
+    warn = `
+      <div class="warn-card">
+        <div class="label">CONFIRM</div>
+        <div class="msg">You have ${myCount} pick(s) queued and ${esc(otherName)} has ${otherCount} queued in this set. Pulling a new set clears every pick and match for both accounts — this can't be undone.</div>
+        <div class="row">
+          <button class="btn small on-dark" id="cancelNewSetBtn">CANCEL</button>
+          <button class="btn small on-dark" id="confirmNewSetBtn">CLEAR &amp; PULL NEW SET</button>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="drawer-label">REVIEWS / 08 FILES</div>
+    <div class="drawer-grid">
+      <div class="cell"><div class="k">CURRENT SET</div><div class="v">${esc(state.cycle.id)}</div></div>
+      <div class="cell"><div class="k">SIGNED IN AS</div><div class="v">${esc(state.profiles[state.me].name)}</div></div>
+      <div class="cell"><div class="k">YOUR RENTALS</div><div class="v">${myRentals.length} / 8</div></div>
+      <div class="cell"><div class="k">MATCHES</div><div class="v">${matched.length}</div></div>
+    </div>
+    <div class="drawer-actions">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn small" id="syncBtn">SYNC</button>
+        <button class="btn small" id="matchesBtn" ${matched.length ? "" : "disabled"}>MATCHES (${matched.length})</button>
+        <button class="btn small" id="newSetBtn">NEW SET</button>
+        <button class="btn small" id="logoutBtn">SIGN OUT</button>
+      </div>
+    </div>
+    ${warn}
+  `;
+}
+function updateDrawer(){
+  const el = document.getElementById("drawerEl");
+  if (!el) return;
+  el.innerHTML = drawerInnerHtml();
+  document.getElementById("syncBtn").onclick = syncRentals;
+  document.getElementById("matchesBtn").onclick = openMatchesModal;
+  document.getElementById("newSetBtn").onclick = startNewSetFlow;
+  document.getElementById("logoutBtn").onclick = logout;
+  if (state.confirmingNewSet){
+    document.getElementById("cancelNewSetBtn").onclick = cancelNewSet;
+    document.getElementById("confirmNewSetBtn").onclick = performNewSet;
+  }
+}
+
+/* ================= MATCHES MODAL ================= */
+function getMatchRecords(){
+  return matchedIds().map(id => state.movies.find(m => m.id === id)).filter(Boolean);
+}
+
+function openMatchesModal(){
+  const matches = getMatchRecords();
+  const nameA = state.profiles.A.name;
+  const nameB = state.profiles.B.name;
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "matchesOverlay";
+
+  const otherKey = state.me === "A" ? "B" : "A";
+  const otherName = state.profiles[otherKey].name;
+
+  const blocksHtml = matches.length
+    ? matches.map((m, i) => `
+        <div class="match-block">
+          <div class="match-no">MATCH ${String(i+1).padStart(2,"0")}</div>
+          <div class="match-title">${esc(m.t)}</div>
+          <div class="match-meta">${esc(m.d)} · ${esc(String(m.y))} · ${esc(m.g)}</div>
+          <div class="match-names">${esc(nameA)} · ${esc(nameB)}</div>
+        </div>
+      `).join("")
+    : `<div class="matches-empty">No matches yet — once you and ${esc(otherName)} rent the same film, it'll show up here.</div>`;
+
+  overlay.innerHTML = `
+    <div class="matches-panel">
+      <div class="matches-head">
+        <div class="eyebrow">${matches.length} MATCH${matches.length === 1 ? "" : "ES"} THIS WEEK</div>
+        <button class="matches-close" id="matchesCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      ${blocksHtml}
+      <button class="matches-download" id="matchesDownloadBtn" ${matches.length ? "" : "disabled"}>DOWNLOAD ALL MATCH INVITES (PDF)</button>
+    </div>
+  `;
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeMatchesModal();
+  });
+  document.body.appendChild(overlay);
+  document.body.style.overflow = "hidden";
+
+  document.getElementById("matchesCloseBtn").onclick = closeMatchesModal;
+  const dlBtn = document.getElementById("matchesDownloadBtn");
+  if (dlBtn && matches.length) dlBtn.onclick = () => downloadMatchInvitesPdf(matches);
+
+  document.addEventListener("keydown", handleMatchesEsc);
+}
+function handleMatchesEsc(e){
+  if (e.key === "Escape") closeMatchesModal();
+}
+function closeMatchesModal(){
+  const overlay = document.getElementById("matchesOverlay");
+  if (overlay) overlay.remove();
+  document.body.style.overflow = "";
+  document.removeEventListener("keydown", handleMatchesEsc);
+}
+
+/* ---- tiny dependency-free PDF writer (no external scripts / no network) ---- */
+function pdfSanitize(str){
+  return String(str)
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\u2026/g, "...")
+    .split("").map(ch => ch.charCodeAt(0) > 255 ? "?" : ch).join("");
+}
+function pdfEscape(str){
+  return pdfSanitize(str).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+function pdfTextOp(x, y, text, {size=11, font="F1"}={}){
+  return `BT /${font} ${size} Tf 1 0 0 1 ${x} ${842-y} Tm (${pdfEscape(text)}) Tj ET`;
+}
+function pdfLineOp(x1, y1, x2, y2, width=0.75){
+  return `${width} w ${x1} ${842-y1} m ${x2} ${842-y2} l S`;
+}
+function buildMinimalPdf(pagesOps){
+  const objects = [];
+  const fontRegNum = 3, fontBoldNum = 4;
+  const firstPageObjNum = 5;
+  const kids = pagesOps.map((_, i) => firstPageObjNum + i*2);
+  objects[0] = `<< /Type /Catalog /Pages 2 0 R >>`;
+  objects[1] = `<< /Type /Pages /Kids [${kids.map(n => n+" 0 R").join(" ")}] /Count ${pagesOps.length} >>`;
+  objects[2] = `<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>`;
+  objects[3] = `<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>`;
+  pagesOps.forEach((ops, i) => {
+    const pageNum = firstPageObjNum + i*2;
+    const contentNum = pageNum + 1;
+    const contentStr = ops.join("\n");
+    objects[pageNum-1] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontRegNum} 0 R /F2 ${fontBoldNum} 0 R >> >> /Contents ${contentNum} 0 R >>`;
+    objects[contentNum-1] = `<< /Length ${contentStr.length} >>\nstream\n${contentStr}\nendstream`;
+  });
+
+  let pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+  const offsets = [0];
+  objects.forEach((body, idx) => {
+    offsets.push(pdf.length);
+    pdf += `${idx+1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
+  for (let i=1;i<=objects.length;i++){
+    pdf += `${String(offsets[i]).padStart(10,"0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length+1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  return pdf;
+}
+function pdfStringToBytes(str){
+  const bytes = new Uint8Array(str.length);
+  for (let i=0;i<str.length;i++) bytes[i] = str.charCodeAt(i) & 0xFF;
+  return bytes;
+}
+
+function downloadMatchInvitesPdf(matches){
+  const nameA = state.profiles.A.name;
+  const nameB = state.profiles.B.name;
+  try{
+    const marginX = 56, rightX = 595 - 56;
+    let y = 64;
+    let ops = [];
+    const pagesOps = [];
+    const ensureSpace = (needed) => {
+      if (y + needed > 780){
+        pagesOps.push(ops);
+        ops = [];
+        y = 64;
+      }
+    };
+
+    ops.push(pdfTextOp(marginX, y, "WEEKLY MOVIE RENTAL", {size:16, font:"F2"}));
+    y += 20;
+    ops.push(pdfTextOp(marginX, y, `${matches.length} MATCH${matches.length === 1 ? "" : "ES"} \u00b7 SET ${state.cycle.id}`, {size:10.5}));
+    y += 10;
+    ops.push(pdfLineOp(marginX, y, rightX, y, 0.75));
+    y += 30;
+
+    matches.forEach((m, i) => {
+      ensureSpace(110);
+      ops.push(pdfTextOp(marginX, y, `MATCH ${String(i+1).padStart(2,"0")}`, {size:9.5}));
+      y += 20;
+      ops.push(pdfTextOp(marginX, y, m.t, {size:15, font:"F2"}));
+      y += 20;
+      ops.push(pdfTextOp(marginX, y, `${m.d} \u00b7 ${m.y} \u00b7 ${m.g}`, {size:11}));
+      y += 18;
+      ops.push(pdfTextOp(marginX, y, `${nameA} \u00b7 ${nameB}`, {size:11.5, font:"F2"}));
+      y += 22;
+      ops.push(pdfLineOp(marginX, y, rightX, y, 0.5));
+      y += 26;
+    });
+    pagesOps.push(ops);
+
+    const pdfStr = buildMinimalPdf(pagesOps);
+    const blob = new Blob([pdfStringToBytes(pdfStr)], {type:"application/pdf"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `match-invites-${state.cycle.id}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch(e){
+    alert("Could not generate the PDF right now — please try again.");
+  }
+}
+
+init();
+})();
+</script>
+</body>
+</html>
