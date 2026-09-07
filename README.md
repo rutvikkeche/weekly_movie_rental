@@ -1,4 +1,4 @@
-# Weekly Movie Rental
+# Weekly Movie Rental - https://claude.ai/public/artifacts/5ea039b9-c556-4f73-8c1a-7099b2d98a0d
 
 A tiny two-person "movie rental drawer," styled like a retro card-catalog / file-folder system. Each week, eight films are pulled onto a shared shelf. Both people privately mark which ones they'd rent — when you both pick the same title, it's a **match**.
 
